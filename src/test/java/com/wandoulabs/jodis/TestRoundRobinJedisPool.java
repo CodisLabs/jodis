@@ -44,13 +44,12 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPoolConfig;
-import redis.clients.jedis.exceptions.JedisException;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.io.Closeables;
+
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.exceptions.JedisException;
 
 /**
  * @author Apache9
@@ -77,7 +76,7 @@ public class TestRoundRobinJedisPool {
 
     private Jedis jedis2;
 
-    private String zkPath = "/" + getClass().getName();
+    private String zkProxyDir = "/" + getClass().getName();
 
     private RoundRobinJedisPool jodisPool;
 
@@ -113,7 +112,8 @@ public class TestRoundRobinJedisPool {
             }
 
             @Override
-            public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+            public FileVisitResult postVisitDirectory(Path dir, IOException exc)
+                    throws IOException {
                 Files.delete(dir);
                 return FileVisitResult.CONTINUE;
             }
@@ -121,17 +121,17 @@ public class TestRoundRobinJedisPool {
         });
     }
 
-    private void addNode(String name, int port, String state) throws IOException,
-            InterruptedException, KeeperException {
+    private void addNode(String name, int port, String state)
+            throws IOException, InterruptedException, KeeperException {
         ZooKeeper zk = new ZooKeeper("localhost:" + zkPort, 5000, null);
         try {
-            if (zk.exists(zkPath, null) == null) {
-                zk.create(zkPath, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            if (zk.exists(zkProxyDir, null) == null) {
+                zk.create(zkProxyDir, null, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
             }
             ObjectNode node = mapper.createObjectNode();
             node.put("addr", "127.0.0.1:" + port);
             node.put("state", state);
-            zk.create(zkPath + "/" + name, mapper.writer().writeValueAsBytes(node),
+            zk.create(zkProxyDir + "/" + name, mapper.writer().writeValueAsBytes(node),
                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         } finally {
             zk.close();
@@ -141,7 +141,7 @@ public class TestRoundRobinJedisPool {
     private void removeNode(String name) throws InterruptedException, KeeperException, IOException {
         ZooKeeper zk = new ZooKeeper("localhost:" + zkPort, 5000, null);
         try {
-            zk.delete(zkPath + "/" + name, -1);
+            zk.delete(zkProxyDir + "/" + name, -1);
         } finally {
             zk.close();
         }
@@ -165,8 +165,8 @@ public class TestRoundRobinJedisPool {
         jedis1 = new Jedis("localhost", redisPort1);
         jedis2 = new Jedis("localhost", redisPort2);
         addNode("node1", redisPort1, "online");
-        jodisPool = new RoundRobinJedisPool("localhost:" + zkPort, 5000, zkPath,
-                new JedisPoolConfig());
+        jodisPool = RoundRobinJedisPool.create().curatorClient("localhost:" + zkPort, 5000)
+                .zkProxyDir(zkProxyDir).build();
     }
 
     @After

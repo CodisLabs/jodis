@@ -40,17 +40,19 @@ import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.JedisPoolConfig;
-import redis.clients.jedis.exceptions.JedisException;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
+
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPoolConfig;
+import redis.clients.jedis.Protocol;
+import redis.clients.jedis.exceptions.JedisException;
 
 /**
  * A round robin connection pool for connecting multiple codis proxies based on Jedis and Curator.
@@ -102,7 +104,15 @@ public class RoundRobinJedisPool implements JedisResourcePool {
 
     private final JedisPoolConfig poolConfig;
 
-    private final int timeout;
+    private final int connectionTimeoutMs;
+
+    private final int soTimeoutMs;
+
+    private final String password;
+
+    private final int database;
+
+    private final String clientName;
 
     /**
      * Create a RoundRobinJedisPool with default timeout.
@@ -120,6 +130,7 @@ public class RoundRobinJedisPool implements JedisResourcePool {
      *            same as JedisPool
      * @see #RoundRobinJedisPool(String, int, String, JedisPoolConfig, int)
      */
+    @Deprecated
     public RoundRobinJedisPool(String zkAddr, int zkSessionTimeoutMs, String zkPath,
             JedisPoolConfig poolConfig) {
         this(zkAddr, zkSessionTimeoutMs, zkPath, poolConfig, JEDIS_POOL_TIMEOUT_UNSET);
@@ -143,16 +154,14 @@ public class RoundRobinJedisPool implements JedisResourcePool {
      *            timeout of JedisPool
      * @see #RoundRobinJedisPool(CuratorFramework, boolean, String, JedisPoolConfig, int)
      */
+    @Deprecated
     public RoundRobinJedisPool(String zkAddr, int zkSessionTimeoutMs, String zkPath,
             JedisPoolConfig poolConfig, int timeout) {
-        this(CuratorFrameworkFactory
-                .builder()
-                .connectString(zkAddr)
+        this(CuratorFrameworkFactory.builder().connectString(zkAddr)
                 .sessionTimeoutMs(zkSessionTimeoutMs)
-                .retryPolicy(
-                        new BoundedExponentialBackoffRetryUntilElapsed(CURATOR_RETRY_BASE_SLEEP_MS,
-                                CURATOR_RETRY_MAX_SLEEP_MS, -1L)).build(), true, zkPath,
-                poolConfig, timeout);
+                .retryPolicy(new BoundedExponentialBackoffRetryUntilElapsed(
+                        CURATOR_RETRY_BASE_SLEEP_MS, CURATOR_RETRY_MAX_SLEEP_MS, -1L))
+                .build(), true, zkPath, poolConfig, timeout);
     }
 
     /**
@@ -167,6 +176,7 @@ public class RoundRobinJedisPool implements JedisResourcePool {
      * @param poolConfig
      *            same as JedisPool
      */
+    @Deprecated
     public RoundRobinJedisPool(CuratorFramework curatorClient, boolean closeCurator, String zkPath,
             JedisPoolConfig poolConfig) {
         this(curatorClient, closeCurator, zkPath, poolConfig, JEDIS_POOL_TIMEOUT_UNSET);
@@ -186,13 +196,25 @@ public class RoundRobinJedisPool implements JedisResourcePool {
      * @param timeout
      *            timeout of JedisPool
      */
+    @Deprecated
     public RoundRobinJedisPool(CuratorFramework curatorClient, boolean closeCurator, String zkPath,
             JedisPoolConfig poolConfig, int timeout) {
+        this(curatorClient, closeCurator, zkPath, poolConfig, timeout, timeout, null,
+                Protocol.DEFAULT_DATABASE, null);
+    }
+
+    private RoundRobinJedisPool(CuratorFramework curatorClient, boolean closeCurator,
+            String zkProxyDir, JedisPoolConfig poolConfig, int connectionTimeoutMs, int soTimeoutMs,
+            String password, int database, String clientName) {
         this.poolConfig = poolConfig;
-        this.timeout = timeout;
+        this.connectionTimeoutMs = connectionTimeoutMs;
+        this.soTimeoutMs = soTimeoutMs;
+        this.password = password;
+        this.database = database;
+        this.clientName = clientName;
         this.curatorClient = curatorClient;
         this.closeCurator = closeCurator;
-        watcher = new PathChildrenCache(curatorClient, zkPath, true);
+        watcher = new PathChildrenCache(curatorClient, zkProxyDir, true);
         watcher.getListenable().addListener(new PathChildrenCacheListener() {
 
             @Override
@@ -244,16 +266,12 @@ public class RoundRobinJedisPool implements JedisResourcePool {
                     String[] hostAndPort = addr.split(":");
                     String host = hostAndPort[0];
                     int port = Integer.parseInt(hostAndPort[1]);
-                    if (timeout == JEDIS_POOL_TIMEOUT_UNSET) {
-                        pool = new PooledObject(addr, new JedisPool(poolConfig, host, port));
-                    } else {
-                        pool = new PooledObject(addr,
-                                new JedisPool(poolConfig, host, port, timeout));
-                    }
+                    pool = new PooledObject(addr, new JedisPool(poolConfig, host, port,
+                            connectionTimeoutMs, soTimeoutMs, password, database, clientName));
                 }
                 builder.add(pool);
-            } catch (Exception e) {
-                LOG.warn("parse " + childData.getPath() + " failed", e);
+            } catch (Throwable t) {
+                LOG.warn("parse " + childData.getPath() + " failed", t);
             }
         }
         this.pools = builder.build();
@@ -292,6 +310,176 @@ public class RoundRobinJedisPool implements JedisResourcePool {
         this.pools = ImmutableList.of();
         for (PooledObject pool: pools) {
             pool.pool.close();
+        }
+    }
+
+    /**
+     * Create a {@link RoundRobinJedisPool} using the fluent style api.
+     * 
+     * @return
+     */
+    public static Builder create() {
+        return new Builder();
+    }
+
+    public static final class Builder {
+
+        private CuratorFramework curatorClient;
+
+        private boolean closeCurator;
+
+        private String zkProxyDir;
+
+        private String zkAddr;
+
+        private int zkSessionTimeoutMs;
+
+        private JedisPoolConfig poolConfig;
+
+        private int connectionTimeoutMs = Protocol.DEFAULT_TIMEOUT;
+
+        private int soTimeoutMs = Protocol.DEFAULT_TIMEOUT;
+
+        private String password;
+
+        private int database = Protocol.DEFAULT_DATABASE;
+
+        private String clientName;
+
+        private Builder() {}
+
+        /**
+         * Set curator client.
+         * 
+         * @param curatorClient
+         *            the client to be used
+         * @param closeCurator
+         *            whether to close curator client while closing pool
+         */
+        public Builder curatorClient(CuratorFramework curatorClient, boolean closeCurator) {
+            this.curatorClient = curatorClient;
+            this.closeCurator = closeCurator;
+            return this;
+        }
+
+        /**
+         * Set codis proxy path on zk.
+         * 
+         * @param zkProxyDir
+         *            the codis proxy dir on ZooKeeper. e.g., "/zk/codis/db_xxx/proxy"
+         */
+        public Builder zkProxyDir(String zkProxyDir) {
+            this.zkProxyDir = zkProxyDir;
+            return this;
+        }
+
+        /**
+         * Set curator client.
+         * <p>
+         * We will create curator client based on these parameters and close it while closing pool.
+         * 
+         * @param zkAddr
+         *            ZooKeeper connect string. e.g., "zk1:2181"
+         * @param zkSessionTimeoutMs
+         *            ZooKeeper session timeout in milliseconds
+         */
+        public Builder curatorClient(String zkAddr, int zkSessionTimeoutMs) {
+            this.zkAddr = zkAddr;
+            this.zkSessionTimeoutMs = zkSessionTimeoutMs;
+            return this;
+        }
+
+        /**
+         * Set jedis pool config.
+         */
+        public Builder poolConfig(JedisPoolConfig poolConfig) {
+            this.poolConfig = poolConfig;
+            return this;
+        }
+
+        /**
+         * Set jedis pool timeout in milliseconds.
+         * <p>
+         * We will set connectionTimeoutMs and soTimeoutMs both.
+         * 
+         * @param timeoutMs
+         *            timeout is milliseconds
+         */
+        public Builder timeoutMs(int timeoutMs) {
+            this.connectionTimeoutMs = this.soTimeoutMs = timeoutMs;
+            return this;
+        }
+
+        /**
+         * Set jedis pool connection timeout in milliseconds.
+         * 
+         * @param connectionTimeoutMs
+         *            timeout is milliseconds
+         */
+        public Builder connectionTimeoutMs(int connectionTimeoutMs) {
+            this.connectionTimeoutMs = connectionTimeoutMs;
+            return this;
+        }
+
+        /**
+         * Set jedis pool connection soTimeout in milliseconds.
+         * 
+         * @param soTimeoutMs
+         *            timeout is milliseconds
+         */
+        public Builder soTimeoutMs(int soTimeoutMs) {
+            this.soTimeoutMs = soTimeoutMs;
+            return this;
+        }
+
+        /**
+         * Set password.
+         */
+        public Builder password(String password) {
+            this.password = password;
+            return this;
+        }
+
+        /**
+         * Set redis database.
+         */
+        public Builder database(int database) {
+            this.database = database;
+            return this;
+        }
+
+        /**
+         * Set redis client name.
+         */
+        public Builder clientName(String clientName) {
+            this.clientName = clientName;
+            return this;
+        }
+
+        private void validate() {
+            Preconditions.checkNotNull(zkProxyDir, "zkProxyDir can not be null");
+            if (curatorClient == null) {
+                Preconditions.checkNotNull(zkAddr, "zk client can not be null");
+                curatorClient = CuratorFrameworkFactory.builder().connectString(zkAddr)
+                        .sessionTimeoutMs(zkSessionTimeoutMs)
+                        .retryPolicy(new BoundedExponentialBackoffRetryUntilElapsed(
+                                CURATOR_RETRY_BASE_SLEEP_MS, CURATOR_RETRY_MAX_SLEEP_MS, -1L))
+                        .build();
+                curatorClient.start();
+                closeCurator = true;
+            }
+            if (poolConfig == null) {
+                poolConfig = new JedisPoolConfig();
+            }
+        }
+
+        /**
+         * Create the {@link RoundRobinJedisPool}.
+         */
+        public RoundRobinJedisPool build() {
+            validate();
+            return new RoundRobinJedisPool(curatorClient, closeCurator, zkProxyDir, poolConfig,
+                    connectionTimeoutMs, soTimeoutMs, password, database, clientName);
         }
     }
 }
