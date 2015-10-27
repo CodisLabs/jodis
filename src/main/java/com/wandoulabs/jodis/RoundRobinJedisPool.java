@@ -73,8 +73,6 @@ public class RoundRobinJedisPool implements JedisResourcePool {
 
     private static final int CURATOR_RETRY_MAX_SLEEP_MS = 30 * 1000;
 
-    private static final int JEDIS_POOL_TIMEOUT_UNSET = -1;
-
     private static final ImmutableSet<PathChildrenCacheEvent.Type> RESET_TYPES = Sets
             .immutableEnumSet(PathChildrenCacheEvent.Type.CHILD_ADDED,
                     PathChildrenCacheEvent.Type.CHILD_UPDATED,
@@ -133,7 +131,7 @@ public class RoundRobinJedisPool implements JedisResourcePool {
     @Deprecated
     public RoundRobinJedisPool(String zkAddr, int zkSessionTimeoutMs, String zkPath,
             JedisPoolConfig poolConfig) {
-        this(zkAddr, zkSessionTimeoutMs, zkPath, poolConfig, JEDIS_POOL_TIMEOUT_UNSET);
+        this(zkAddr, zkSessionTimeoutMs, zkPath, poolConfig, Protocol.DEFAULT_TIMEOUT);
     }
 
     /**
@@ -179,7 +177,7 @@ public class RoundRobinJedisPool implements JedisResourcePool {
     @Deprecated
     public RoundRobinJedisPool(CuratorFramework curatorClient, boolean closeCurator, String zkPath,
             JedisPoolConfig poolConfig) {
-        this(curatorClient, closeCurator, zkPath, poolConfig, JEDIS_POOL_TIMEOUT_UNSET);
+        this(curatorClient, closeCurator, zkPath, poolConfig, Protocol.DEFAULT_TIMEOUT);
     }
 
     /**

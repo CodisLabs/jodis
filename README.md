@@ -14,15 +14,17 @@ Add this to your pom.xml. We deploy jodis to https://oss.sonatype.org.
 <dependency>
   <groupId>com.wandoulabs.jodis</groupId>
   <artifactId>jodis</artifactId>
-  <version>0.2.1</version>
+  <version>0.2.2</version>
 </dependency>
 ```
 To use it
 ```java
-JedisResourcePool jedisPool = new RoundRobinJedisPool("zkserver:2181", 30000, "/zk/codis/db_xxx/proxy", new JedisPoolConfig());
+JedisResourcePool jedisPool = RoundRobinJedisPool.create()
+        .curatorClient("zkserver:2181", 30000).zkProxyDir("/zk/codis/db_xxx/proxy").build();
 try (Jedis jedis = jedisPool.getResource()) {
     jedis.set("foo", "bar");
     String value = jedis.get("foo");
+    System.out.println(value);
 }
 ```
 Note: JDK7 is required to build and use jodis. If you want to use jodis with JDK6, you can copy the source files to your project, replace ThreadLocalRandom in BoundedExponentialBackoffRetryUntilElapsed and JDK7 specified grammar(maybe, not sure) , and then compile with JDK6.

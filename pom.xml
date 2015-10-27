@@ -18,7 +18,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.wandoulabs.jodis</groupId>
     <artifactId>jodis</artifactId>
-    <version>0.2.2-SNAPSHOT</version>
+    <version>0.2.2</version>
     <packaging>jar</packaging>
     <name>${project.artifactId}</name>
     <description>Round Robin jedis pool for codis</description>
