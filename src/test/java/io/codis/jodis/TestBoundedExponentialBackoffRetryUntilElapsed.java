@@ -1,7 +1,7 @@
 /**
  * @(#)TestBoundedExponentialBackoffRetryUntilElapsed.java, 2014-12-2. 
  * 
- * Copyright (c) 2014 Wandoujia Inc.
+ * Copyright (c) 2014 CodisLabs.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,9 +22,11 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.wandoulabs.jodis;
+package io.codis.jodis;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -45,7 +47,6 @@ public class TestBoundedExponentialBackoffRetryUntilElapsed {
         public void sleepFor(long time, TimeUnit unit) {
             this.sleepTimeMs = unit.toMillis(time);
         }
-
     }
 
     @Test

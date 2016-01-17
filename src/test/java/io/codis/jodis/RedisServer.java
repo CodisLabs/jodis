@@ -1,7 +1,7 @@
 /**
- * @(#)JedisResourcePool.java, 2014-12-2. 
+ * @(#)RedisServer.java, 2014-11-30. 
  * 
- * Copyright (c) 2014 Wandoujia Inc.
+ * Copyright (c) 2014 CodisLabs.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,24 +22,31 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.wandoulabs.jodis;
+package io.codis.jodis;
 
-import java.io.Closeable;
-
-import redis.clients.jedis.Jedis;
+import java.io.IOException;
 
 /**
- * Describe a pool which we can acquire jedis instance.
- * 
  * @author Apache9
  */
-public interface JedisResourcePool extends Closeable {
+public class RedisServer {
 
-    /**
-     * Get a jedis instance from pool.
-     * <p>
-     * We do not have a returnResource method, just close the jedis instance
-     * returned directly.
-     */
-    Jedis getResource();
+    private final ProcessBuilder builder;
+
+    private Process process;
+
+    public RedisServer(int port) {
+        builder = new ProcessBuilder().command("redis-server", "--port",
+                Long.toString(port)).inheritIO();
+    }
+
+    public void start() throws IOException {
+        process = builder.start();
+    }
+
+    public void stop() {
+        if (process != null) {
+            process.destroy();
+        }
+    }
 }

@@ -1,7 +1,7 @@
 /**
  * @(#)CodisProxyInfo.java, 2015-10-14. 
  * 
- * Copyright (c) 2014 Wandoujia Inc.
+ * Copyright (c) 2014 CodisLabs.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,7 +22,7 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-package com.wandoulabs.jodis;
+package io.codis.jodis;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 

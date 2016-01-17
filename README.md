@@ -1,6 +1,6 @@
 #Jodis - Java client for codis
 
-[![Build Status](https://travis-ci.org/wandoulabs/jodis.svg)](https://travis-ci.org/wandoulabs/jodis)
+[![Build Status](https://travis-ci.org/CodisLabs/jodis.svg)](https://travis-ci.org/CodisLabs/jodis)
 
 Jodis is a java client for codis based on [Jedis](https://github.com/xetorthio/jedis) and [Curator](http://curator.apache.org/).
 
