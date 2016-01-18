@@ -26,6 +26,9 @@ package io.codis.jodis;
 
 import static org.apache.curator.framework.imps.CuratorFrameworkState.LATENT;
 import static org.apache.curator.framework.recipes.cache.PathChildrenCache.StartMode.BUILD_INITIAL_CACHE;
+import static org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent.Type.CHILD_ADDED;
+import static org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent.Type.CHILD_REMOVED;
+import static org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent.Type.CHILD_UPDATED;
 
 import java.io.IOException;
 import java.util.List;
@@ -76,9 +79,7 @@ public class RoundRobinJedisPool implements JedisResourcePool {
     private static final int CURATOR_RETRY_MAX_SLEEP_MS = 30 * 1000;
 
     private static final ImmutableSet<PathChildrenCacheEvent.Type> RESET_TYPES = Sets
-            .immutableEnumSet(PathChildrenCacheEvent.Type.CHILD_ADDED,
-                    PathChildrenCacheEvent.Type.CHILD_UPDATED,
-                    PathChildrenCacheEvent.Type.CHILD_REMOVED);
+            .immutableEnumSet(CHILD_ADDED, CHILD_UPDATED, CHILD_REMOVED);
 
     private final CuratorFramework curatorClient;
 
@@ -127,17 +128,20 @@ public class RoundRobinJedisPool implements JedisResourcePool {
         watcher = new PathChildrenCache(curatorClient, zkProxyDir, true);
         watcher.getListenable().addListener(new PathChildrenCacheListener() {
 
+            private void logEvent(PathChildrenCacheEvent event) {
+                StringBuilder msg = new StringBuilder("Receive child event: ");
+                msg.append("type=").append(event.getType());
+                ChildData data = event.getData();
+                msg.append(", path=").append(data.getPath());
+                msg.append(", stat=").append(data.getStat());
+                msg.append(", length=").append(data.getData().length);
+                LOG.info(msg.toString());
+            }
+
             @Override
             public void childEvent(CuratorFramework client, PathChildrenCacheEvent event)
                     throws Exception {
-                StringBuilder sb = new StringBuilder("zookeeper event received: type=")
-                        .append(event.getType());
-                if (event.getData() != null) {
-                    ChildData data = event.getData();
-                    sb.append(", path=").append(data.getPath()).append(", stat=")
-                            .append(data.getStat());
-                }
-                LOG.info(sb.toString());
+                logEvent(event);
                 if (RESET_TYPES.contains(event.getType())) {
                     resetPools();
                 }
@@ -146,6 +150,7 @@ public class RoundRobinJedisPool implements JedisResourcePool {
         try {
             watcher.start(BUILD_INITIAL_CACHE);
         } catch (Exception e) {
+            close();
             throw new JedisException(e);
         }
         resetPools();

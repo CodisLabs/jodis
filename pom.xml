@@ -211,6 +211,12 @@
                             <goal>deploy</goal>
                         </goals>
                     </execution>
+                    <execution>
+                        <id>default-deploy</id>
+                        <configuration>
+                            <skip>true</skip>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
