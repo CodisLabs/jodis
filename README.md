@@ -12,7 +12,7 @@ Jodis is a java client for codis based on [Jedis](https://github.com/xetorthio/j
 Add this to your pom.xml. We deploy jodis to https://oss.sonatype.org.
 ```xml
 <dependency>
-  <groupId>com.wandoulabs.jodis</groupId>
+  <groupId>io.codis.jodis</groupId>
   <artifactId>jodis</artifactId>
   <version>0.3.0</version>
 </dependency>
