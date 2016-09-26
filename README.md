@@ -27,7 +27,7 @@ try (Jedis jedis = jedisPool.getResource()) {
     System.out.println(value);
 }
 ```
-Or for Codis3.x:
+Or for Codis3.x with `jodis_compatible=false`:
 ```java
 JedisResourcePool jedisPool = RoundRobinJedisPool.create()
         .curatorClient("zkserver:2181", 30000).zkProxyDir("/jodis/xxx").build();
