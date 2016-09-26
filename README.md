@@ -17,10 +17,20 @@ Add this to your pom.xml. We deploy jodis to https://oss.sonatype.org.
   <version>0.3.0</version>
 </dependency>
 ```
-To use it
+To use it for Codis2.x:
 ```java
 JedisResourcePool jedisPool = RoundRobinJedisPool.create()
         .curatorClient("zkserver:2181", 30000).zkProxyDir("/zk/codis/db_xxx/proxy").build();
+try (Jedis jedis = jedisPool.getResource()) {
+    jedis.set("foo", "bar");
+    String value = jedis.get("foo");
+    System.out.println(value);
+}
+```
+Or for Codis3.x:
+```java
+JedisResourcePool jedisPool = RoundRobinJedisPool.create()
+        .curatorClient("zkserver:2181", 30000).zkProxyDir("/jodis/xxx").build();
 try (Jedis jedis = jedisPool.getResource()) {
     jedis.set("foo", "bar");
     String value = jedis.get("foo");
