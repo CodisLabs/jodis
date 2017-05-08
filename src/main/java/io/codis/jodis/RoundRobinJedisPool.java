@@ -171,7 +171,7 @@ public class RoundRobinJedisPool implements JedisResourcePool {
             addr2Pool.put(pool.addr, pool);
         }
         ImmutableList.Builder<PooledObject> builder = ImmutableList.builder();
-        for (ChildData childData: watcher.getCurrentData()) {
+        for (ChildData childData : watcher.getCurrentData()) {
             try {
                 CodisProxyInfo proxyInfo = MAPPER.readValue(childData.getData(),
                         CodisProxyInfo.class);
@@ -185,8 +185,9 @@ public class RoundRobinJedisPool implements JedisResourcePool {
                     String[] hostAndPort = addr.split(":");
                     String host = hostAndPort[0];
                     int port = Integer.parseInt(hostAndPort[1]);
-                    pool = new PooledObject(addr, new JedisPool(poolConfig, host, port,
-                            connectionTimeoutMs, soTimeoutMs, password, database, clientName));
+                    pool = new PooledObject(addr,
+                            new JedisPool(poolConfig, host, port, connectionTimeoutMs, soTimeoutMs,
+                                    password, database, clientName, false, null, null, null));
                 }
                 builder.add(pool);
             } catch (Throwable t) {

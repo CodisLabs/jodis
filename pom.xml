@@ -25,7 +25,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.codis.jodis</groupId>
     <artifactId>jodis</artifactId>
-    <version>0.3.2-SNAPSHOT</version>
+    <version>0.4.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>${project.artifactId}</name>
     <description>Round Robin jedis pool for codis</description>
@@ -42,14 +42,15 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
         <maven.compile.encoding>UTF-8</maven.compile.encoding>
-        <curator.version>2.9.1</curator.version>
+        <curator.version>2.12.0</curator.version>
+        <jedis.version>2.9.0</jedis.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>redis.clients</groupId>
             <artifactId>jedis</artifactId>
-            <version>2.8.0</version>
+            <version>${jedis.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.curator</groupId>
