@@ -132,9 +132,17 @@ public class RoundRobinJedisPool implements JedisResourcePool {
                 StringBuilder msg = new StringBuilder("Receive child event: ");
                 msg.append("type=").append(event.getType());
                 ChildData data = event.getData();
-                msg.append(", path=").append(data.getPath());
-                msg.append(", stat=").append(data.getStat());
-                msg.append(", length=").append(data.getData().length);
+                if (data != null) {
+                    msg.append(", path=").append(data.getPath());
+                    msg.append(", stat=").append(data.getStat());
+                    if (data.getData() != null) {
+                        msg.append(", bytes length=").append(data.getData().length);
+                    } else {
+                        msg.append(", no bytes");
+                    }
+                } else {
+                    msg.append(", no data");
+                }
                 LOG.info(msg.toString());
             }
 
