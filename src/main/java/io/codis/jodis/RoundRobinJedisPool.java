@@ -181,17 +181,17 @@ public class RoundRobinJedisPool implements JedisResourcePool {
                 String addr = proxyInfo.getAddr();
                 PooledObject pool = addr2Pool.remove(addr);
                 if (pool == null) {
-                    LOG.info("Add new proxy: " + addr);
                     String[] hostAndPort = addr.split(":");
                     String host = hostAndPort[0];
                     int port = Integer.parseInt(hostAndPort[1]);
                     pool = new PooledObject(addr,
                             new JedisPool(poolConfig, host, port, connectionTimeoutMs, soTimeoutMs,
                                     password, database, clientName, false, null, null, null));
+                    LOG.info("Add new proxy: " + addr);
                 }
                 builder.add(pool);
-            } catch (Throwable t) {
-                LOG.warn("parse " + childData.getPath() + " failed", t);
+            } catch (Exception e) {
+                LOG.warn("parse " + childData.getPath() + " failed", e);
             }
         }
         this.pools = builder.build();
