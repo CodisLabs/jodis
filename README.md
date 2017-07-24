@@ -14,7 +14,7 @@ Add this to your pom.xml. We deploy jodis to https://oss.sonatype.org.
 <dependency>
   <groupId>io.codis.jodis</groupId>
   <artifactId>jodis</artifactId>
-  <version>0.4.0</version>
+  <version>0.4.1</version>
 </dependency>
 ```
 To use it for Codis2.x:
