@@ -1,14 +1,14 @@
-#Jodis - Java client for codis
+# Jodis - Java client for codis
 
 [![Build Status](https://travis-ci.org/CodisLabs/jodis.svg)](https://travis-ci.org/CodisLabs/jodis)
 
 Jodis is a java client for codis based on [Jedis](https://github.com/xetorthio/jedis) and [Curator](http://curator.apache.org/).
 
-##Features
+# Features
 - Use a round robin policy to balance load to multiple codis proxies.
 - Detect proxy online and offline automatically.
 
-##How to use
+# How to use
 Add this to your pom.xml. We deploy jodis to https://oss.sonatype.org.
 ```xml
 <dependency>
