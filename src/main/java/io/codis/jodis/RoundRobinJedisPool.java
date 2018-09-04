@@ -149,19 +149,23 @@ public class RoundRobinJedisPool implements JedisResourcePool {
             @Override
             public void childEvent(CuratorFramework client, PathChildrenCacheEvent event)
                     throws Exception {
-                logEvent(event);
-                if (RESET_TYPES.contains(event.getType())) {
-                    resetPools();
+                synchronized (RoundRobinJedisPool.this) {
+                    logEvent(event);
+                    if (RESET_TYPES.contains(event.getType())) {
+                        resetPools();
+                    }
                 }
             }
         });
-        try {
-            watcher.start(BUILD_INITIAL_CACHE);
-        } catch (Exception e) {
-            close();
-            throw new JedisException(e);
+        synchronized (this) {
+            try {
+                watcher.start(BUILD_INITIAL_CACHE);
+            } catch (Exception e) {
+                close();
+                throw new JedisException(e);
+            }
+            resetPools();
         }
-        resetPools();
     }
 
     private void resetPools() {
