@@ -33,6 +33,8 @@ import static org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent.
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.curator.framework.CuratorFramework;
@@ -78,6 +80,8 @@ public class RoundRobinJedisPool implements JedisResourcePool {
 
     private static final int CURATOR_RETRY_MAX_SLEEP_MS = 30 * 1000;
 
+    private static final long DELAY_BEFORE_CLOSING_POOL = 10000; // milliseconds
+
     private static final ImmutableSet<PathChildrenCacheEvent.Type> RESET_TYPES = Sets
             .immutableEnumSet(CHILD_ADDED, CHILD_UPDATED, CHILD_REMOVED);
 
@@ -96,6 +100,19 @@ public class RoundRobinJedisPool implements JedisResourcePool {
             this.addr = addr;
             this.pool = pool;
         }
+
+        public Jedis getResource() {
+            return pool.getResource();
+        }
+
+        public void close() {
+            try {
+                pool.close();
+                LOG.info("Connection pool to {} closed", addr);
+            } catch (Exception e) {
+                LOG.error("Error closing connection pool to " + addr, e);
+            }
+        }
     }
 
     private volatile ImmutableList<PooledObject> pools = ImmutableList.of();
@@ -113,6 +130,9 @@ public class RoundRobinJedisPool implements JedisResourcePool {
     private final int database;
 
     private final String clientName;
+
+    private final ScheduledThreadPoolExecutor jedisPoolClosingExecutor =
+            new ScheduledThreadPoolExecutor(1);
 
     private RoundRobinJedisPool(CuratorFramework curatorClient, boolean closeCurator,
             String zkProxyDir, JedisPoolConfig poolConfig, int connectionTimeoutMs, int soTimeoutMs,
@@ -199,9 +219,14 @@ public class RoundRobinJedisPool implements JedisResourcePool {
             }
         }
         this.pools = builder.build();
-        for (PooledObject pool: addr2Pool.values()) {
+        for (final PooledObject pool: addr2Pool.values()) {
             LOG.info("Remove proxy: " + pool.addr);
-            pool.pool.close();
+            jedisPoolClosingExecutor.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    pool.close();
+                }
+            }, DELAY_BEFORE_CLOSING_POOL, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -215,7 +240,7 @@ public class RoundRobinJedisPool implements JedisResourcePool {
             int current = nextIdx.get();
             int next = current >= pools.size() - 1 ? 0 : current + 1;
             if (nextIdx.compareAndSet(current, next)) {
-                return pools.get(next).pool.getResource();
+                return pools.get(next).getResource();
             }
         }
     }
@@ -233,8 +258,9 @@ public class RoundRobinJedisPool implements JedisResourcePool {
         List<PooledObject> pools = this.pools;
         this.pools = ImmutableList.of();
         for (PooledObject pool: pools) {
-            pool.pool.close();
+            pool.close();
         }
+        jedisPoolClosingExecutor.shutdown();
     }
 
     /**
